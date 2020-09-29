@@ -2,6 +2,7 @@ package pool
 
 import (
 	"bytes"
+	"io"
 	"sync"
 
 	"github.com/alex60217101990/nietzsche/external/consts"
@@ -32,6 +33,10 @@ func (up *UnlimitPoolBuffer) PutBuffer(b *bytes.Buffer) {
 		b.Reset()
 		up.pool.Put(b)
 	}
+}
+
+func (up *UnlimitPoolBuffer) ConvertToWriteCloser(b *bytes.Buffer) io.WriteCloser {
+	return &WriteCloser{b}
 }
 
 type UnlimitPool struct {

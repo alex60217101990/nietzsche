@@ -89,21 +89,27 @@ func InitRaftNode() {
 
 	fmt.Println(snapshotStore, cacheStore)
 
-	// raftServer, err := raft.NewRaft(raftConf, fsmStore, cacheStore, store, snapshotStore, transport)
-	// if err != nil {
-	// 	log.Fatal(err)
-	// 	return
-	// }
+	// Init transport
+	var transport *raft.NetworkTransport
+	transport, err = initRaftTransport()
+	if err != nil {
+		logger.AppLogger.Fatal(err)
+	}
 
-	// // always start single server as a leader
-	// configuration := raft.Configuration{
-	// 	Servers: []raft.Server{
-	// 		{
-	// 			ID:      raft.ServerID(conf.Raft.NodeId),
-	// 			Address: transport.LocalAddr(),
-	// 		},
-	// 	},
-	// }
+	raftServer, err := raft.NewRaft(raftConf /*fsmStore*/, nil, cacheStore, store, snapshotStore, transport)
+	if err != nil {
+		logger.AppLogger.Fatal(err)
+	}
 
-	// raftServer.BootstrapCluster(configuration)
+	// always start single server as a leader
+	configuration := raft.Configuration{
+		Servers: []raft.Server{
+			{
+				ID:      raft.ServerID(configs.Conf.Raft.NodeID),
+				Address: transport.LocalAddr(),
+			},
+		},
+	}
+
+	raftServer.BootstrapCluster(configuration)
 }

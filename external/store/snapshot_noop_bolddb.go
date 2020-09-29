@@ -23,10 +23,14 @@ type snapshotNoopBoltDB struct {
 
 // Persist persist to disk. Return nil on success, otherwise return error.
 func (s snapshotNoopBoltDB) Persist(sink raft.SnapshotSink) (err error) {
-	pbuf := s.buffersPool.GetBuffer()
+	if s.outStream == nil {
+		return nil
+	}
+
+	r, w := io.Pipe()
+
 	defer func() {
 		sink.Close()
-		s.buffersPool.PutBuffer(pbuf)
 	}()
 
 	err = s.db.View(func(tx *bolt.Tx) (err error) {
@@ -35,17 +39,17 @@ func (s snapshotNoopBoltDB) Persist(sink raft.SnapshotSink) (err error) {
 			eg := new(errgroup.Group)
 
 			eg.Go(func() (err error) {
-				_, err = tx.WriteTo(pbuf)
+				_, err = tx.WriteTo(w)
 				return err
 			})
 
 			eg.Go(func() (err error) {
-				return gozstd.StreamCompressLevel(s.outStream, pbuf, 30)
+				return gozstd.StreamCompressLevel(sink, r, 30)
 			})
 
 			err = eg.Wait()
 		} else {
-			_, err = tx.WriteTo(s.outStream)
+			_, err = tx.WriteTo(sink)
 		}
 
 		return err
@@ -70,10 +74,8 @@ func (s snapshotNoopBoltDB) Release() {}
 // newSnapshotNoop is returned by an FSM in response to a snapshotNoop
 // It must be safe to invoke FSMSnapshot methods with concurrent
 // calls to Apply.
-func newSnapshotNoopBoltDB(db *bolt.DB, out io.WriteCloser, bp ap.BufferPool) (raft.FSMSnapshot, error) {
+func newSnapshotNoopBoltDB(db *bolt.DB) (raft.FSMSnapshot, error) {
 	return &snapshotNoopBoltDB{
-		db:          db,
-		outStream:   out,
-		buffersPool: bp,
+		db: db,
 	}, nil
 }

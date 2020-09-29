@@ -5,6 +5,7 @@ import (
 	"encoding/gob"
 	"encoding/json"
 	"fmt"
+	"io"
 	"strings"
 
 	ap "github.com/alex60217101990/nietzsche/external/alloc-pool"
@@ -39,6 +40,10 @@ func NewBoldDBStore() Store {
 		pool:        new(ap.UnlimitPool).InitPool(),
 		buffersPool: new(ap.UnlimitPoolBuffer).InitPool(),
 	}
+}
+
+func (b *BoldDBStore) SetDumpWriter(w io.WriteCloser) {
+
 }
 
 func (b BoldDBStore) Close() error {
@@ -167,7 +172,6 @@ func (b *BoldDBStore) Apply(log *raft.Log) interface{} {
 // Snapshot is used to support log compaction.
 // No need to call snapshot since it already persisted in disk (using BadgerDB) when raft calling Apply function.
 func (b *BoldDBStore) Snapshot() (raft.FSMSnapshot, error) {
-	return newSnapshotNoopBoltDB(
-		b.db, 
-	)
+	return newSnapshotNoopBoltDB(b.db)
 }
+
